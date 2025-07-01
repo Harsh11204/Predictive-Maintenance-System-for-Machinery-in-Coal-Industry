@@ -11,7 +11,7 @@ scaler = joblib.load("predictive_maintenance_scaler.pkl")
 # --- Machine type mapping (used during training) ---
 machine_type_mapping = {"Conveyor belt": 0, "Crusher": 1, "Loader": 2}
 
-# --- Must match training feature order exactly ---
+# --- Feature order (must match training) ---
 FEATURE_ORDER = [
     'vibration', 'temperature', 'load', 'rpm', 'sound',
     'usage_minutes', 'planned_operating_time', 'downtime_minutes',
@@ -51,7 +51,7 @@ with tabs[0]:
         "downtime_minutes": downtime,
         "oil_quality": oil_quality,
         "power_usage": power_usage,
-        "machine_type": machine_type_mapping[machine_type],  # ✅ mapped to int
+        "machine_type": machine_type_mapping[machine_type],
         "downtime_percentage": downtime_percentage
     }])
 
@@ -59,13 +59,10 @@ with tabs[0]:
 
     if st.button("🔍 Predict"):
         try:
-            st.write("📊 Model input preview:", input_data)
             scaled_input = scaler.transform(input_data)
-            st.write("✅ Scaled input:", scaled_input[:1])
 
-            risk_class = int(risk_model.predict(scaled_input)[0])
-            risk_label = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}.get(risk_class, "Unknown")
-
+            # If your model gives string labels like 'Low Risk', don't convert to int
+            risk_label = risk_model.predict(scaled_input)[0]
             rul = int(rul_model.predict(scaled_input)[0])
             failure_type = type_model.predict(scaled_input)[0]
 
@@ -99,9 +96,7 @@ with tabs[1]:
                     df_model = df[FEATURE_ORDER].copy()
                     scaled = scaler.transform(df_model)
 
-                    risk_preds = risk_model.predict(scaled).astype(int)
-                    df["risk"] = risk_preds
-                    df["risk_level"] = pd.Series(risk_preds).map({0: "Low Risk", 1: "Medium Risk", 2: "High Risk"})
+                    df["risk_level"] = risk_model.predict(scaled)
                     df["rul"] = rul_model.predict(scaled).astype(int)
                     df["failure_type"] = type_model.predict(scaled)
 
