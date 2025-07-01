@@ -19,7 +19,7 @@ FEATURE_ORDER = [
 ]
 
 # --- App Layout ---
-st.title("🔧 Predictive Maintenance System for SECL")
+st.title("🔧 Predictive Maintenance System for Machineries in Coal Industries")
 tabs = st.tabs(["Manual Input", "Batch Upload", "Visualization"])
 
 # ------------------- TAB 1: Manual Input -------------------
@@ -59,6 +59,7 @@ with tabs[0]:
 
     if st.button("🔍 Predict"):
         try:
+            st.write("📊 Model input preview:", input_data)
             scaled_input = scaler.transform(input_data)
 
             # If your model gives string labels like 'Low Risk', don't convert to int
