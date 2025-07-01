@@ -12,8 +12,8 @@ type_model = joblib.load('type_model.pkl')
 rul_model = joblib.load('rul_model.pkl')
 
 # Load encoder or scaler 
-scaler = joblib.load('scaler.pkl')
-label_encoder = joblib.load('label_encoder.pkl')
+scaler = joblib.load('predictive_maintenace_scaler.pkl')
+label_encoder = joblib.load('predictive_maintenace_encoder.pkl')
 
 def get_failure_type(row):
     reasons = []
