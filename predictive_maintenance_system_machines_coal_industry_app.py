@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
+import matplotlib.pyplot as plt
 
 # --- Load Models and Scaler ---
 risk_model = joblib.load("risk_model.pkl")
@@ -20,11 +21,11 @@ FEATURE_ORDER = [
 
 # --- App Layout ---
 st.title("🔧 Predictive Maintenance System for Machineries in Coal Industry")
-tabs = st.tabs(["Manual Input", "Batch Upload", "Filter Machines"])
+tabs = st.tabs(["Manual Data Input Panel", "Bulk Data Input Panel", "Filter Machines by Risk Level", "Visual Analytics"])
 
 # ------------------- TAB 1: Manual Input -------------------
 with tabs[0]:
-    st.header("🛠️ Manual Input")
+    st.header("🛠️ Manual Data Input Panel")
 
     machine_type = st.selectbox("Machine Type", list(machine_type_mapping.keys()))
     vibration = st.number_input("Vibration (mm/s)", min_value=0.0, max_value=10.0, value=2.5, step=0.1)
@@ -61,6 +62,7 @@ with tabs[0]:
         try:
             st.write("📊 Model input preview:", input_data)
             scaled_input = scaler.transform(input_data)
+
             risk_label = risk_model.predict(scaled_input)[0]
             rul = int(rul_model.predict(scaled_input)[0])
             failure_type = type_model.predict(scaled_input)[0]
@@ -73,10 +75,9 @@ with tabs[0]:
             st.error(f"❌ Prediction failed:\n\n{e}")
             st.stop()
 
-# ------------------- TAB 2: Batch Upload + Visualization -------------------
+# ------------------- TAB 2: Batch Upload -------------------
 with tabs[1]:
-    st.header("📂 Batch Upload")
-
+    st.header("📂  Bulk Data Input Panel")
     uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
     if uploaded_file:
         df = pd.read_csv(uploaded_file)
@@ -103,9 +104,6 @@ with tabs[1]:
                     csv_out = df.to_csv(index=False).encode("utf-8")
                     st.download_button("📥 Download Results", csv_out, "predicted_output.csv")
 
-                    # Save in session for Tab 3
-                    st.session_state["batch_df"] = df
-
                     st.subheader("📊 Risk Distribution")
                     st.bar_chart(df["risk_level"].value_counts())
 
@@ -114,16 +112,16 @@ with tabs[1]:
 
 # ------------------- TAB 3: Filter Machines -------------------
 with tabs[2]:
-    st.header("🔍 Filter Machines")
+    st.header("🔎 Filter Machines by Risk Level")
 
-    df = st.session_state.get("batch_df")
-    if df is not None:
+    if 'df' in locals():
         filter_option = st.selectbox("Filter", [
             "All", 
             "Low Risk Only", 
             "Medium Risk Only", 
             "High Risk Only", 
-            "Only Risky (Med + High)"
+            "Only Risky (Med + High)", 
+            "High Risk with RUL < 1000"
         ])
 
         if filter_option == "Low Risk Only":
@@ -133,8 +131,32 @@ with tabs[2]:
         elif filter_option == "High Risk Only":
             st.dataframe(df[df["risk_level"] == "High Risk"])
         elif filter_option == "Only Risky (Med + High)":
-            st.dataframe(df[df["risk_level"].isin(["Medium Risk", "High Risk"])])
+            st.dataframe(df[df["risk_level"] != "Low Risk"])
+        elif filter_option == "High Risk with RUL < 1000":
+            st.dataframe(df[(df["risk_level"] == "High Risk") & (df["rul"] < 1000)])
         else:
             st.dataframe(df)
     else:
-        st.info("Please upload a CSV in the 'Batch Upload' tab to enable filtering.")
+        st.info("Please upload a CSV in the 'Batch Upload' tab first.")
+
+# ------------------- TAB 4: Visual Analytics -------------------
+with tabs[3]:
+    st.header("📊 Visual Analytics")
+
+    if 'df' in locals():
+        st.subheader("📌 Healthy vs Risky Machines")
+
+        df["status"] = df["risk_level"].apply(lambda x: "Healthy" if x == "Low Risk" else "Risky")
+        status_counts = df["status"].value_counts()
+
+        fig1, ax1 = plt.subplots()
+        ax1.pie(status_counts, labels=status_counts.index, autopct='%1.1f%%', startangle=90)
+        ax1.axis('equal')
+        st.pyplot(fig1)
+
+        st.subheader("🧯 Failure Type Distribution")
+        failure_counts = df["failure_type"].value_counts()
+        st.bar_chart(failure_counts)
+
+    else:
+        st.info("Please upload a CSV in the 'Batch Upload' tab to view analytics.")
