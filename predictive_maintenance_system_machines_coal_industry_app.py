@@ -88,12 +88,14 @@ with tabs[1]:
                 df["downtime_percentage"] = df["downtime_minutes"] / df["planned_operating_time"] * 100
 
                 try:
-                    df = df[FEATURE_ORDER]
-                    scaled = scaler.transform(df)
+                    df_model = df[FEATURE_ORDER].copy()  # Isolate numeric features
+                    scaled = scaler.transform(df_model)
 
+                    # Predict separately to avoid overwriting issues
                     pred_risk = risk_model.predict(scaled).astype(int)
                     df["risk"] = pred_risk
                     df["risk_level"] = pd.Series(pred_risk).map({0: "Low Risk", 1: "Medium Risk", 2: "High Risk"})
+
                     df["rul"] = rul_model.predict(scaled).astype(int)
                     df["failure_type"] = type_model.predict(scaled)
 
@@ -102,7 +104,7 @@ with tabs[1]:
                     st.download_button("📥 Download Results", csv_out, "predicted_output.csv")
 
                 except Exception as e:
-                    st.error(f"Prediction failed:\n\n{e}")
+                    st.error(f"❌ Prediction failed:\n\n{e}")
 
 # ------------------- TAB 3: Visualization -------------------
 with tabs[2]:
