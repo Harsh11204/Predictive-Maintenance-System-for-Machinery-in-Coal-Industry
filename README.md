@@ -22,7 +22,7 @@ The dataset **must** be in **CSV** format and should contain **at least** the fo
 
 ## 🎮 Features & Usage
 
-### ✅ 1. Manual Input Panel
+### ✅ 1. Manual Data Input Panel
 
 * Enter real-time values for a single machine.
 * Predicts:
@@ -31,13 +31,13 @@ The dataset **must** be in **CSV** format and should contain **at least** the fo
   * ⚠️ Failure Type(s) (e.g., Overheating, Acoustic Fault)
   * ⏳ Remaining Useful Life (RUL)
 
-### ✅ 2. Batch CSV Upload + Predictions
+### ✅ 2. Batch Data Input Panel
 
 * Upload dataset with multiple machines.
 * Returns predictions for all 3 targets.
 * 📥 Option to download the results as a CSV file.
 
-### ✅ 3. Visual Analytics
+### ✅ 3. Filter Machines by Risk Level
 
 * 📊 View pie/bar charts of:
 
@@ -45,7 +45,7 @@ The dataset **must** be in **CSV** format and should contain **at least** the fo
   * Failure type distribution
 * Helps identify which failure types are most frequent.
 
-### ✅ 4. Filter by Risk
+### ✅ 4. Visual Analytics
 
 * Filter machines based on:
 
