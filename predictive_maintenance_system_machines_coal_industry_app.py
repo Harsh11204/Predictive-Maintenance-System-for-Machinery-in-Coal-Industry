@@ -2,14 +2,15 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-# --- Load Models ---
+# --- Load Models and Scalers ---
 risk_model = joblib.load("risk_model.pkl")
 rul_model = joblib.load("rul_model.pkl")
 type_model = joblib.load("type_model.pkl")
 scaler = joblib.load("predictive_maintenance_scaler.pkl")
+label_encoder = joblib.load("predictive_maintenance_encoder.pkl")
 
 # --- App Layout ---
-st.title("🔧 Predictive Maintenance System for Machineries in Coal Industry")
+st.title("🔧 Predictive Maintenance System for SECL")
 tabs = st.tabs(["Manual Input", "Batch Upload", "Visualization"])
 
 # --- Tab 1: Manual Input ---
@@ -29,6 +30,7 @@ with tabs[0]:
     power_usage = st.number_input("Power Usage", value=150)
 
     downtime_percentage = round((downtime / planned_op) * 100, 2)
+    machine_type_label = label_encoder.transform([machine_type])[0]
 
     input_data = pd.DataFrame([{
         "vibration": vibration,
@@ -42,18 +44,16 @@ with tabs[0]:
         "downtime_percentage": downtime_percentage,
         "oil_quality": oil_quality,
         "power_usage": power_usage,
-        "machine_type": machine_type
+        "machine_type_label": machine_type_label
     }])
 
     if st.button("🔍 Predict Failure Risk, Type & RUL"):
-        # Scale and predict using raw values
         scaled_input = scaler.transform(input_data)
-        X = scaled_input  # already array
 
-        risk = risk_model.predict(X)[0]
-        rul = int(rul_model.predict(X)[0])
-        failure_type = type_model.predict(X)[0]
-        risk_label = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}[risk]
+        risk = risk_model.predict(scaled_input)[0]
+        risk_label = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}.get(risk)
+        rul = int(rul_model.predict(scaled_input)[0])
+        failure_type = type_model.predict(scaled_input)[0]
 
         st.success(f"🧠 Risk Level: **{risk_label}**")
         st.warning(f"⚠️ Failure Type (Model): **{failure_type}**")
@@ -61,24 +61,26 @@ with tabs[0]:
 
 # --- Tab 2: Batch Upload ---
 with tabs[1]:
-    st.header("📂 Batch Upload")
+    st.header("📂 Batch CSV Upload")
 
     uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
     if uploaded_file:
         df = pd.read_csv(uploaded_file)
 
         if "machine_type" not in df.columns:
-            st.error("CSV must include 'machine_type' column (as string).")
+            st.error("CSV must include a 'machine_type' column (as string)")
         else:
+            df["machine_type_label"] = label_encoder.transform(df["machine_type"])
             df["downtime_percentage"] = df["downtime_minutes"] / df["planned_operating_time"] * 100
 
-            scaled = scaler.transform(df)
-            X = scaled
+            # Drop string column and use encoded label
+            input_df = df.drop(columns=["machine_type"])
+            scaled = scaler.transform(input_df)
 
-            df["risk"] = risk_model.predict(X)
+            df["risk"] = risk_model.predict(scaled)
             df["risk_level"] = df["risk"].map({0: "Low Risk", 1: "Medium Risk", 2: "High Risk"})
-            df["rul"] = rul_model.predict(X)
-            df["failure_type"] = type_model.predict(X)
+            df["rul"] = rul_model.predict(scaled)
+            df["failure_type"] = type_model.predict(scaled)
 
             st.dataframe(df.head())
             csv_out = df.to_csv(index=False).encode("utf-8")
@@ -92,14 +94,14 @@ with tabs[2]:
         st.subheader("📈 Risk Level Distribution")
         st.bar_chart(df["risk_level"].value_counts())
 
-        st.subheader("🔍 Filter Machines")
-        filter_option = st.selectbox("Filter", ["All", "Only Risky", "High Risk with RUL < 1000"])
+        st.subheader("🔎 Filter Machines")
+        filter_choice = st.selectbox("Filter", ["All", "Only Risky", "High Risk with RUL < 1000"])
 
-        if filter_option == "Only Risky":
+        if filter_choice == "Only Risky":
             st.dataframe(df[df["risk_level"] != "Low Risk"])
-        elif filter_option == "High Risk with RUL < 1000":
+        elif filter_choice == "High Risk with RUL < 1000":
             st.dataframe(df[(df["risk_level"] == "High Risk") & (df["rul"] < 1000)])
         else:
             st.dataframe(df)
     else:
-        st.info("Please upload a CSV in the 'Batch Upload' tab to enable visualization.")
+        st.info("Please upload a CSV in 'Batch Upload' tab to enable charts.")
