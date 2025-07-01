@@ -2,16 +2,24 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-# Load models
+# --- Load Models and Scaler ---
 risk_model = joblib.load("risk_model.pkl")
 rul_model = joblib.load("rul_model.pkl")
 type_model = joblib.load("type_model.pkl")
 scaler = joblib.load("predictive_maintenance_scaler.pkl")
 
+# --- Must match training feature order exactly ---
+FEATURE_ORDER = [
+    "vibration", "temperature", "load", "rpm", "sound",
+    "usage_minutes", "planned_operating_time", "downtime_minutes",
+    "downtime_percentage", "oil_quality", "power_usage", "machine_type"
+]
+
+# --- App Layout ---
 st.title("🔧 Predictive Maintenance System for SECL")
 tabs = st.tabs(["Manual Input", "Batch Upload", "Visualization"])
 
-# --- Manual Input Tab ---
+# --- Tab 1: Manual Input ---
 with tabs[0]:
     st.header("🛠️ Manual Input")
 
@@ -41,21 +49,24 @@ with tabs[0]:
         "downtime_percentage": downtime_percentage,
         "oil_quality": oil_quality,
         "power_usage": power_usage,
-        "machine_type": machine_type  # ✅ keep as string
+        "machine_type": machine_type
     }])
+
+    input_data = input_data[FEATURE_ORDER]  # enforce correct column order
 
     if st.button("🔍 Predict"):
         scaled_input = scaler.transform(input_data)
+
         risk = risk_model.predict(scaled_input)[0]
-        risk_label = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}[risk]
+        risk_label = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}.get(risk)
         rul = int(rul_model.predict(scaled_input)[0])
         failure_type = type_model.predict(scaled_input)[0]
 
         st.success(f"🧠 Risk Level: **{risk_label}**")
-        st.warning(f"⚠️ Failure Type: **{failure_type}**")
+        st.warning(f"⚠️ Failure Type (Model): **{failure_type}**")
         st.info(f"⏳ Remaining Useful Life: **{rul} minutes**")
 
-# --- Batch Upload Tab ---
+# --- Tab 2: Batch Upload ---
 with tabs[1]:
     st.header("📂 Batch Upload")
 
@@ -64,21 +75,27 @@ with tabs[1]:
         df = pd.read_csv(uploaded_file)
 
         if "machine_type" not in df.columns:
-            st.error("CSV must include 'machine_type' column as string.")
+            st.error("CSV must include 'machine_type' column (as string).")
         else:
             df["downtime_percentage"] = df["downtime_minutes"] / df["planned_operating_time"] * 100
 
-            scaled = scaler.transform(df)
-            df["risk"] = risk_model.predict(scaled)
-            df["risk_level"] = df["risk"].map({0: "Low Risk", 1: "Medium Risk", 2: "High Risk"})
-            df["rul"] = rul_model.predict(scaled)
-            df["failure_type"] = type_model.predict(scaled)
+            try:
+                df = df[FEATURE_ORDER]  # enforce column order
+                scaled = scaler.transform(df)
 
-            st.dataframe(df.head())
-            csv_out = df.to_csv(index=False).encode("utf-8")
-            st.download_button("📥 Download Results", csv_out, "predicted_output.csv")
+                df["risk"] = risk_model.predict(scaled)
+                df["risk_level"] = df["risk"].map({0: "Low Risk", 1: "Medium Risk", 2: "High Risk"})
+                df["rul"] = rul_model.predict(scaled)
+                df["failure_type"] = type_model.predict(scaled)
 
-# --- Visualization Tab ---
+                st.dataframe(df.head())
+                csv_out = df.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Download Results", csv_out, "predicted_output.csv")
+
+            except Exception as e:
+                st.error(f"Prediction failed due to input mismatch:\n\n{e}")
+
+# --- Tab 3: Visualization ---
 with tabs[2]:
     st.header("📊 Visualization")
 
@@ -87,13 +104,13 @@ with tabs[2]:
         st.bar_chart(df["risk_level"].value_counts())
 
         st.subheader("🔎 Filter Machines")
-        choice = st.selectbox("Filter", ["All", "Only Risky", "High Risk with RUL < 1000"])
+        filter_option = st.selectbox("Filter", ["All", "Only Risky", "High Risk with RUL < 1000"])
 
-        if choice == "Only Risky":
+        if filter_option == "Only Risky":
             st.dataframe(df[df["risk_level"] != "Low Risk"])
-        elif choice == "High Risk with RUL < 1000":
+        elif filter_option == "High Risk with RUL < 1000":
             st.dataframe(df[(df["risk_level"] == "High Risk") & (df["rul"] < 1000)])
         else:
             st.dataframe(df)
     else:
-        st.info("Upload CSV in Batch tab to enable charts.")
+        st.info("Please upload a CSV in the 'Batch Upload' tab to see charts.")
