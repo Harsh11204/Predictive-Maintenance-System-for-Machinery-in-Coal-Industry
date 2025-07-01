@@ -12,10 +12,11 @@ scaler = joblib.load("predictive_maintenance_scaler.pkl")
 machine_type_mapping = {"Conveyor belt": 0, "Crusher": 1, "Loader": 2}
 
 # --- Must match training feature order exactly ---
-FEATURE_ORDER = ['vibration', 'temperature', 'load', 'rpm', 'sound', 'usage_minutes', 'planned_operating_time', 'downtime_minutes', 'oil_quality', 'power_usage', 'machine_type', 'downtime_percentage']
+FEATURE_ORDER = ['vibration', 'temperature', 'load', 'rpm', 'sound', 'usage_minutes', 'planned_operating_time',
+                 'downtime_minutes', 'oil_quality', 'power_usage', 'machine_type', 'downtime_percentage']
 
 # --- App Layout ---
-st.title("🔧 Predictive Maintenance System for SECL")
+st.title("🔧 Predictive Maintenance System for Machineries in Coal Industry")
 tabs = st.tabs(["Manual Input", "Batch Upload", "Visualization"])
 
 # --- Tab 1: Manual Input ---
@@ -54,16 +55,21 @@ with tabs[0]:
     input_data = input_data[FEATURE_ORDER]
 
     if st.button("🔍 Predict"):
+        # Scale inputs
         scaled_input = scaler.transform(input_data)
 
-        risk = int(risk_model.predict(scaled_input)[0])
-        risk_label = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}.get(risk, f"Unknown ({risk})")
-        rul = int(rul_model.predict(scaled_input)[0])
+        # Get predictions
+        raw_risk = int(risk_model.predict(scaled_input)[0])
+        raw_rul = int(rul_model.predict(scaled_input)[0])
         failure_type = type_model.predict(scaled_input)[0]
 
+        # Map risk level to string
+        risk_label = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}.get(raw_risk, f"Unknown ({raw_risk})")
+
+        # Display outputs
         st.success(f"🧠 Risk Level: **{risk_label}**")
-        st.warning(f"⚠️ Failure Type (Model): **{failure_type}**")
-        st.info(f"⏳ Remaining Useful Life: **{rul} minutes**")
+        st.warning(f"⚠️ Failure Type: **{failure_type}**")
+        st.info(f"⏳ Remaining Useful Life: **{raw_rul} minutes**")
 
 # --- Tab 2: Batch Upload ---
 with tabs[1]:
@@ -74,7 +80,7 @@ with tabs[1]:
         df = pd.read_csv(uploaded_file)
 
         if "machine_type" not in df.columns:
-            st.error("CSV must include 'machine_type' column as string.")
+            st.error("CSV must include 'machine_type' column (as string).")
         else:
             df["machine_type"] = df["machine_type"].map(machine_type_mapping)
 
