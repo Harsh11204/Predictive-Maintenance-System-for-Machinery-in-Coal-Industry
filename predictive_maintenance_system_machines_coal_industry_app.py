@@ -51,36 +51,31 @@ with tabs[0]:
         "downtime_minutes": downtime,
         "oil_quality": oil_quality,
         "power_usage": power_usage,
-        "machine_type": machine_type_mapping[machine_type],
+        "machine_type": machine_type_mapping[machine_type],  # ✅ mapped to int
         "downtime_percentage": downtime_percentage
     }])
 
     input_data = input_data[FEATURE_ORDER]
 
     if st.button("🔍 Predict"):
-    try:
-        # Validate input
-        st.write("📊 Input to model:", input_data)
-        scaled_input = scaler.transform(input_data)
-        st.write("✅ Scaled input preview:", scaled_input[:1])
+        try:
+            st.write("📊 Model input preview:", input_data)
+            scaled_input = scaler.transform(input_data)
+            st.write("✅ Scaled input:", scaled_input[:1])
 
-        # Predict using models
-        risk_class = int(risk_model.predict(scaled_input)[0])
-        rul = int(rul_model.predict(scaled_input)[0])
-        failure_type = type_model.predict(scaled_input)[0]
+            risk_class = int(risk_model.predict(scaled_input)[0])
+            risk_label = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}.get(risk_class, "Unknown")
 
-        # Map to label
-        risk_label = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}.get(risk_class, "Unknown")
+            rul = int(rul_model.predict(scaled_input)[0])
+            failure_type = type_model.predict(scaled_input)[0]
 
-        # Show predictions
-        st.success(f"🧠 Risk Level: **{risk_label}**")
-        st.warning(f"⚠️ Failure Type: **{failure_type}**")
-        st.info(f"⏳ Remaining Useful Life: **{rul} minutes**")
+            st.success(f"🧠 Risk Level: **{risk_label}**")
+            st.warning(f"⚠️ Failure Type: **{failure_type}**")
+            st.info(f"⏳ Remaining Useful Life: **{rul} minutes**")
 
-    except Exception as e:
-        st.error(f"❌ Prediction failed:\n\n{e}")
-        st.stop()
-
+        except Exception as e:
+            st.error(f"❌ Prediction failed:\n\n{e}")
+            st.stop()
 
 # ------------------- TAB 2: Batch Upload -------------------
 with tabs[1]:
@@ -101,14 +96,12 @@ with tabs[1]:
                 df["downtime_percentage"] = df["downtime_minutes"] / df["planned_operating_time"] * 100
 
                 try:
-                    df_model = df[FEATURE_ORDER].copy()  # Isolate numeric features
+                    df_model = df[FEATURE_ORDER].copy()
                     scaled = scaler.transform(df_model)
 
-                    # Predict separately to avoid overwriting issues
-                    pred_risk = risk_model.predict(scaled).astype(int)
-                    df["risk"] = pred_risk
-                    df["risk_level"] = pd.Series(pred_risk).map({0: "Low Risk", 1: "Medium Risk", 2: "High Risk"})
-
+                    risk_preds = risk_model.predict(scaled).astype(int)
+                    df["risk"] = risk_preds
+                    df["risk_level"] = pd.Series(risk_preds).map({0: "Low Risk", 1: "Medium Risk", 2: "High Risk"})
                     df["rul"] = rul_model.predict(scaled).astype(int)
                     df["failure_type"] = type_model.predict(scaled)
 
