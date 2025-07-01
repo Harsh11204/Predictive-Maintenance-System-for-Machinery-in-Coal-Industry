@@ -135,8 +135,6 @@ with tabs[2]:
             st.dataframe(df[df["risk_level"] == "High Risk"])
         elif filter_option == "Only Risky (Med + High)":
             st.dataframe(df[df["risk_level"].isin(["Medium Risk", "High Risk"])])
-        elif filter_option == "High Risk with RUL < 1000":
-            st.dataframe(df[(df["risk_level"] == "High Risk") & (df["rul"] < 1000)])
         else:
             st.dataframe(df)
     else:
