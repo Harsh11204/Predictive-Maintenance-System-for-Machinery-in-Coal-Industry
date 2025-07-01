@@ -8,23 +8,12 @@ rul_model = joblib.load("rul_model.pkl")
 type_model = joblib.load("type_model.pkl")
 scaler = joblib.load("predictive_maintenance_scaler.pkl")
 
-# --- Define expected one-hot columns for machine_type ---
-expected_types = ["machine_type_Conveyor belt", "machine_type_Crusher", "machine_type_Loader"]
-
-# --- Final Feature Order (as per training) ---
-FULL_FEATURE_ORDER = [
+# --- Feature order must match training exactly ---
+FEATURE_ORDER = [
     "vibration", "temperature", "load", "rpm", "sound",
     "usage_minutes", "planned_operating_time", "downtime_minutes",
-    "downtime_percentage", "oil_quality", "power_usage"
-] + expected_types
-
-# --- Preprocessing function ---
-def preprocess_input(df):
-    df = pd.get_dummies(df, columns=["machine_type"])
-    for col in expected_types:
-        if col not in df.columns:
-            df[col] = 0
-    return df[FULL_FEATURE_ORDER]
+    "downtime_percentage", "oil_quality", "power_usage", "machine_type"
+]
 
 # --- App Layout ---
 st.title("🔧 Predictive Maintenance System for SECL")
@@ -63,7 +52,7 @@ with tabs[0]:
         "machine_type": machine_type
     }])
 
-    input_data = preprocess_input(input_data)
+    input_data = input_data[FEATURE_ORDER]  # enforce correct column order
 
     if st.button("🔍 Predict"):
         scaled_input = scaler.transform(input_data)
@@ -91,8 +80,8 @@ with tabs[1]:
             df["downtime_percentage"] = df["downtime_minutes"] / df["planned_operating_time"] * 100
 
             try:
-                df_processed = preprocess_input(df)
-                scaled = scaler.transform(df_processed)
+                df = df[FEATURE_ORDER]
+                scaled = scaler.transform(df)
 
                 df["risk"] = risk_model.predict(scaled)
                 df["risk_level"] = df["risk"].map({0: "Low Risk", 1: "Medium Risk", 2: "High Risk"})
