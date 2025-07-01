@@ -8,7 +8,7 @@ rul_model = joblib.load("rul_model.pkl")
 type_model = joblib.load("type_model.pkl")
 scaler = joblib.load("predictive_maintenance_scaler.pkl")
 
-# --- LabelEncoder Mapping used during training ---
+# --- Mapping used during training ---
 machine_type_mapping = {"Conveyor belt": 0, "Crusher": 1, "Loader": 2}
 
 # --- Must match training feature order exactly ---
@@ -16,7 +16,7 @@ FEATURE_ORDER = ['vibration', 'temperature', 'load', 'rpm', 'sound', 'usage_minu
                  'downtime_minutes', 'oil_quality', 'power_usage', 'machine_type', 'downtime_percentage']
 
 # --- App Layout ---
-st.title("🔧 Predictive Maintenance System for Machineries in Coal Industry")
+st.title("🔧 Predictive Maintenance System for SECL")
 tabs = st.tabs(["Manual Input", "Batch Upload", "Visualization"])
 
 # --- Tab 1: Manual Input ---
@@ -55,21 +55,22 @@ with tabs[0]:
     input_data = input_data[FEATURE_ORDER]
 
     if st.button("🔍 Predict"):
-        # Scale inputs
+        # Ensure input is numeric and scaled
         scaled_input = scaler.transform(input_data)
 
-        # Get predictions
-        raw_risk = int(risk_model.predict(scaled_input)[0])
-        raw_rul = int(rul_model.predict(scaled_input)[0])
-        failure_type = type_model.predict(scaled_input)[0]
+        # Predict values
+        risk_class = int(risk_model.predict(scaled_input)[0])  # integer
+        rul = int(rul_model.predict(scaled_input)[0])  # integer
+        failure_type = type_model.predict(scaled_input)[0]  # string
 
-        # Map risk level to string
-        risk_label = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}.get(raw_risk, f"Unknown ({raw_risk})")
+        # Map risk level
+        risk_label_map = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}
+        risk_label = risk_label_map.get(risk_class, f"Unknown ({risk_class})")
 
         # Display outputs
         st.success(f"🧠 Risk Level: **{risk_label}**")
         st.warning(f"⚠️ Failure Type: **{failure_type}**")
-        st.info(f"⏳ Remaining Useful Life: **{raw_rul} minutes**")
+        st.info(f"⏳ Remaining Useful Life: **{rul} minutes**")
 
 # --- Tab 2: Batch Upload ---
 with tabs[1]:
