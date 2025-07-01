@@ -156,7 +156,19 @@ with tabs[3]:
 
         st.subheader("🧯 Failure Type Distribution")
         failure_counts = df["failure_type"].value_counts()
-        st.bar_chart(failure_counts)
 
+        fig2, ax2 = plt.subplots(figsize=(8, 4))
+        bars = ax2.barh(failure_counts.index, failure_counts.values, color="skyblue")
+        ax2.set_xlabel("Number of Machines")
+        ax2.set_ylabel("Failure Type")
+        ax2.set_title("Failure Type Distribution")
+
+        # Add count labels to bars
+        for bar in bars:
+            width = bar.get_width()
+            ax2.text(width + 0.1, bar.get_y() + bar.get_height()/2,
+                     f'{int(width)}', va='center', fontsize=10)
+        st.pyplot(fig2)
+        
     else:
         st.info("Please upload a CSV in the 'Batch Upload' tab to view analytics.")
