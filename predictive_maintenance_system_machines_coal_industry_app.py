@@ -123,8 +123,7 @@ with tabs[2]:
             "Low Risk Only", 
             "Medium Risk Only", 
             "High Risk Only", 
-            "Only Risky (Med + High)", 
-            "High Risk with RUL < 1000"
+            "Only Risky (Med + High)"
         ])
 
         if filter_option == "Low Risk Only":
