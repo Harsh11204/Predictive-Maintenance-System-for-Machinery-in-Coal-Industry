@@ -58,16 +58,29 @@ with tabs[0]:
     input_data = input_data[FEATURE_ORDER]
 
     if st.button("🔍 Predict"):
+    try:
+        # Validate input
+        st.write("📊 Input to model:", input_data)
         scaled_input = scaler.transform(input_data)
+        st.write("✅ Scaled input preview:", scaled_input[:1])
 
+        # Predict using models
         risk_class = int(risk_model.predict(scaled_input)[0])
-        risk_label = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}.get(risk_class, "Unknown")
         rul = int(rul_model.predict(scaled_input)[0])
         failure_type = type_model.predict(scaled_input)[0]
 
+        # Map to label
+        risk_label = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}.get(risk_class, "Unknown")
+
+        # Show predictions
         st.success(f"🧠 Risk Level: **{risk_label}**")
         st.warning(f"⚠️ Failure Type: **{failure_type}**")
         st.info(f"⏳ Remaining Useful Life: **{rul} minutes**")
+
+    except Exception as e:
+        st.error(f"❌ Prediction failed:\n\n{e}")
+        st.stop()
+
 
 # ------------------- TAB 2: Batch Upload -------------------
 with tabs[1]:
