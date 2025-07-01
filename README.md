@@ -55,7 +55,7 @@ The dataset **must** be in **CSV** format and should contain **at least** the fo
 
 ## ⚙️ Technologies Used
 
-* **Python 3.x**
+* **Python 3.13.0**
 * **Streamlit**
 * **Scikit-learn**
 * **Pandas, NumPy**
