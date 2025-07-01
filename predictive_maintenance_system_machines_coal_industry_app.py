@@ -19,24 +19,24 @@ FEATURE_ORDER = [
 ]
 
 # --- App Layout ---
-st.title("🔧 Predictive Maintenance System for Machineries in Coal Industries")
-tabs = st.tabs(["Manual Input", "Batch Upload", "Visualization"])
+st.title("🔧 Predictive Maintenance System for Machineries in Coal Industry")
+tabs = st.tabs(["Manual Input", "Batch Upload", "Filter Machines"])
 
 # ------------------- TAB 1: Manual Input -------------------
 with tabs[0]:
     st.header("🛠️ Manual Input")
 
     machine_type = st.selectbox("Machine Type", list(machine_type_mapping.keys()))
-    vibration = st.slider("Vibration", 0.0, 10.0, 2.5)
-    temperature = st.slider("Temperature (°C)", 25, 100, 50)
-    load = st.slider("Load (T/m)", 0.1, 3.0, 1.2)
-    rpm = st.slider("RPM", 500, 3000, 1200)
-    sound = st.slider("Sound (dB)", 70, 110, 85)
-    usage_minutes = st.slider("Usage Minutes", 60, 1440, 600)
+    vibration = st.number_input("Vibration (mm/s)", min_value=0.0, max_value=10.0, value=2.5, step=0.1)
+    temperature = st.number_input("Temperature (°C)", min_value=25, max_value=100, value=50)
+    load = st.number_input("Load (T/m)", min_value=0.1, max_value=3.0, value=1.2, step=0.1)
+    rpm = st.number_input("RPM (revs/min)", min_value=500, max_value=3000, value=1200, step=100)
+    sound = st.number_input("Sound (dB)", min_value=70, max_value=110, value=85, step=1)
+    usage_minutes = st.number_input("Usage Minutes (min)", min_value=60, max_value=1440, value=600, step=30)
     planned_op = st.selectbox("Planned Operating Time (min)", list(range(900, 1441, 60)))
-    downtime = st.slider("Downtime (min)", 0, planned_op, 100)
-    oil_quality = st.number_input("Oil Quality", value=220)
-    power_usage = st.number_input("Power Usage", value=150)
+    downtime = st.number_input("Downtime (min)", min_value=0, max_value=planned_op, value=100, step=10)
+    oil_quality = st.number_input("Oil Quality (cSt)", value=220)
+    power_usage = st.number_input("Power Usage (W)", value=150)
 
     downtime_percentage = round((downtime / planned_op) * 100, 2)
 
@@ -61,8 +61,6 @@ with tabs[0]:
         try:
             st.write("📊 Model input preview:", input_data)
             scaled_input = scaler.transform(input_data)
-
-            # If your model gives string labels like 'Low Risk', don't convert to int
             risk_label = risk_model.predict(scaled_input)[0]
             rul = int(rul_model.predict(scaled_input)[0])
             failure_type = type_model.predict(scaled_input)[0]
@@ -75,7 +73,7 @@ with tabs[0]:
             st.error(f"❌ Prediction failed:\n\n{e}")
             st.stop()
 
-# ------------------- TAB 2: Batch Upload -------------------
+# ------------------- TAB 2: Batch Upload + Visualization -------------------
 with tabs[1]:
     st.header("📂 Batch Upload")
 
@@ -105,25 +103,41 @@ with tabs[1]:
                     csv_out = df.to_csv(index=False).encode("utf-8")
                     st.download_button("📥 Download Results", csv_out, "predicted_output.csv")
 
+                    # Save in session for Tab 3
+                    st.session_state["batch_df"] = df
+
+                    st.subheader("📊 Risk Distribution")
+                    st.bar_chart(df["risk_level"].value_counts())
+
                 except Exception as e:
                     st.error(f"❌ Prediction failed:\n\n{e}")
 
-# ------------------- TAB 3: Visualization -------------------
+# ------------------- TAB 3: Filter Machines -------------------
 with tabs[2]:
-    st.header("📊 Visualization")
+    st.header("🔍 Filter Machines")
 
-    if 'df' in locals():
-        st.subheader("📈 Risk Distribution")
-        st.bar_chart(df["risk_level"].value_counts())
+    df = st.session_state.get("batch_df")
+    if df is not None:
+        filter_option = st.selectbox("Filter", [
+            "All", 
+            "Low Risk Only", 
+            "Medium Risk Only", 
+            "High Risk Only", 
+            "Only Risky (Med + High)", 
+            "High Risk with RUL < 1000"
+        ])
 
-        st.subheader("🔎 Filter Machines")
-        filter_option = st.selectbox("Filter", ["All", "Only Risky", "High Risk with RUL < 1000"])
-
-        if filter_option == "Only Risky":
-            st.dataframe(df[df["risk_level"] != "Low Risk"])
+        if filter_option == "Low Risk Only":
+            st.dataframe(df[df["risk_level"] == "Low Risk"])
+        elif filter_option == "Medium Risk Only":
+            st.dataframe(df[df["risk_level"] == "Medium Risk"])
+        elif filter_option == "High Risk Only":
+            st.dataframe(df[df["risk_level"] == "High Risk"])
+        elif filter_option == "Only Risky (Med + High)":
+            st.dataframe(df[df["risk_level"].isin(["Medium Risk", "High Risk"])])
         elif filter_option == "High Risk with RUL < 1000":
             st.dataframe(df[(df["risk_level"] == "High Risk") & (df["rul"] < 1000)])
         else:
             st.dataframe(df)
     else:
-        st.info("Please upload a CSV in the 'Batch Upload' tab to see charts.")
+        st.info("Please upload a CSV in the 'Batch Upload' tab to enable filtering.")
