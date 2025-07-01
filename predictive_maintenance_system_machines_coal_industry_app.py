@@ -8,7 +8,10 @@ rul_model = joblib.load("rul_model.pkl")
 type_model = joblib.load("type_model.pkl")
 scaler = joblib.load("predictive_maintenance_scaler.pkl")
 
-# --- Feature order must match training exactly ---
+# --- LabelEncoder Mapping for machine_type ---
+machine_type_mapping = {"Conveyor belt": 0, "Crusher": 1, "Loader": 2}
+
+# --- Feature Order used during model training ---
 FEATURE_ORDER = [
     "vibration", "temperature", "load", "rpm", "sound",
     "usage_minutes", "planned_operating_time", "downtime_minutes",
@@ -23,7 +26,7 @@ tabs = st.tabs(["Manual Input", "Batch Upload", "Visualization"])
 with tabs[0]:
     st.header("🛠️ Manual Input")
 
-    machine_type = st.selectbox("Machine Type", ["Conveyor belt", "Crusher", "Loader"])
+    machine_type = st.selectbox("Machine Type", list(machine_type_mapping.keys()))
     vibration = st.slider("Vibration", 0.0, 10.0, 2.5)
     temperature = st.slider("Temperature (°C)", 25, 100, 50)
     load = st.slider("Load (T/m)", 0.1, 3.0, 1.2)
@@ -49,7 +52,7 @@ with tabs[0]:
         "downtime_percentage": downtime_percentage,
         "oil_quality": oil_quality,
         "power_usage": power_usage,
-        "machine_type": machine_type
+        "machine_type": machine_type_mapping[machine_type]  # Label encoding
     }])
 
     input_data = input_data[FEATURE_ORDER]  # enforce correct column order
@@ -77,23 +80,30 @@ with tabs[1]:
         if "machine_type" not in df.columns:
             st.error("CSV must include 'machine_type' column (as string).")
         else:
-            df["downtime_percentage"] = df["downtime_minutes"] / df["planned_operating_time"] * 100
+            # Encode machine_type using same LabelEncoder mapping
+            df["machine_type"] = df["machine_type"].map(machine_type_mapping)
 
-            try:
-                df = df[FEATURE_ORDER]
-                scaled = scaler.transform(df)
+            # Check for unmapped machine types
+            if df["machine_type"].isnull().any():
+                st.error("CSV contains unknown machine types. Please use only: Conveyor belt, Crusher, Loader.")
+            else:
+                df["downtime_percentage"] = df["downtime_minutes"] / df["planned_operating_time"] * 100
 
-                df["risk"] = risk_model.predict(scaled)
-                df["risk_level"] = df["risk"].map({0: "Low Risk", 1: "Medium Risk", 2: "High Risk"})
-                df["rul"] = rul_model.predict(scaled).astype(int)
-                df["failure_type"] = type_model.predict(scaled)
+                try:
+                    df = df[FEATURE_ORDER]  # enforce column order
+                    scaled = scaler.transform(df)
 
-                st.dataframe(df.head())
-                csv_out = df.to_csv(index=False).encode("utf-8")
-                st.download_button("📥 Download Results", csv_out, "predicted_output.csv")
+                    df["risk"] = risk_model.predict(scaled)
+                    df["risk_level"] = df["risk"].map({0: "Low Risk", 1: "Medium Risk", 2: "High Risk"})
+                    df["rul"] = rul_model.predict(scaled).astype(int)
+                    df["failure_type"] = type_model.predict(scaled)
 
-            except Exception as e:
-                st.error(f"Prediction failed due to input mismatch:\n\n{e}")
+                    st.dataframe(df.head())
+                    csv_out = df.to_csv(index=False).encode("utf-8")
+                    st.download_button("📥 Download Results", csv_out, "predicted_output.csv")
+
+                except Exception as e:
+                    st.error(f"Prediction failed due to input mismatch:\n\n{e}")
 
 # --- Tab 3: Visualization ---
 with tabs[2]:
