@@ -8,18 +8,21 @@ rul_model = joblib.load("rul_model.pkl")
 type_model = joblib.load("type_model.pkl")
 scaler = joblib.load("predictive_maintenance_scaler.pkl")
 
-# --- Mapping used during training ---
+# --- Machine type mapping (used during training) ---
 machine_type_mapping = {"Conveyor belt": 0, "Crusher": 1, "Loader": 2}
 
 # --- Must match training feature order exactly ---
-FEATURE_ORDER = ['vibration', 'temperature', 'load', 'rpm', 'sound', 'usage_minutes', 'planned_operating_time',
-                 'downtime_minutes', 'oil_quality', 'power_usage', 'machine_type', 'downtime_percentage']
+FEATURE_ORDER = [
+    'vibration', 'temperature', 'load', 'rpm', 'sound',
+    'usage_minutes', 'planned_operating_time', 'downtime_minutes',
+    'oil_quality', 'power_usage', 'machine_type', 'downtime_percentage'
+]
 
 # --- App Layout ---
 st.title("🔧 Predictive Maintenance System for SECL")
 tabs = st.tabs(["Manual Input", "Batch Upload", "Visualization"])
 
-# --- Tab 1: Manual Input ---
+# ------------------- TAB 1: Manual Input -------------------
 with tabs[0]:
     st.header("🛠️ Manual Input")
 
@@ -46,33 +49,27 @@ with tabs[0]:
         "usage_minutes": usage_minutes,
         "planned_operating_time": planned_op,
         "downtime_minutes": downtime,
-        "downtime_percentage": downtime_percentage,
         "oil_quality": oil_quality,
         "power_usage": power_usage,
-        "machine_type": machine_type_mapping[machine_type]
+        "machine_type": machine_type_mapping[machine_type],
+        "downtime_percentage": downtime_percentage
     }])
 
     input_data = input_data[FEATURE_ORDER]
 
     if st.button("🔍 Predict"):
-        # Ensure input is numeric and scaled
         scaled_input = scaler.transform(input_data)
 
-        # Predict values
-        risk_class = int(risk_model.predict(scaled_input)[0])  # integer
-        rul = int(rul_model.predict(scaled_input)[0])  # integer
-        failure_type = type_model.predict(scaled_input)[0]  # string
+        risk_class = int(risk_model.predict(scaled_input)[0])
+        risk_label = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}.get(risk_class, "Unknown")
+        rul = int(rul_model.predict(scaled_input)[0])
+        failure_type = type_model.predict(scaled_input)[0]
 
-        # Map risk level
-        risk_label_map = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}
-        risk_label = risk_label_map.get(risk_class, f"Unknown ({risk_class})")
-
-        # Display outputs
         st.success(f"🧠 Risk Level: **{risk_label}**")
         st.warning(f"⚠️ Failure Type: **{failure_type}**")
         st.info(f"⏳ Remaining Useful Life: **{rul} minutes**")
 
-# --- Tab 2: Batch Upload ---
+# ------------------- TAB 2: Batch Upload -------------------
 with tabs[1]:
     st.header("📂 Batch Upload")
 
@@ -94,8 +91,9 @@ with tabs[1]:
                     df = df[FEATURE_ORDER]
                     scaled = scaler.transform(df)
 
-                    df["risk"] = risk_model.predict(scaled).astype(int)
-                    df["risk_level"] = df["risk"].map({0: "Low Risk", 1: "Medium Risk", 2: "High Risk"})
+                    pred_risk = risk_model.predict(scaled).astype(int)
+                    df["risk"] = pred_risk
+                    df["risk_level"] = pd.Series(pred_risk).map({0: "Low Risk", 1: "Medium Risk", 2: "High Risk"})
                     df["rul"] = rul_model.predict(scaled).astype(int)
                     df["failure_type"] = type_model.predict(scaled)
 
@@ -106,7 +104,7 @@ with tabs[1]:
                 except Exception as e:
                     st.error(f"Prediction failed:\n\n{e}")
 
-# --- Tab 3: Visualization ---
+# ------------------- TAB 3: Visualization -------------------
 with tabs[2]:
     st.header("📊 Visualization")
 
