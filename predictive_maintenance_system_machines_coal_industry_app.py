@@ -12,11 +12,8 @@ scaler = joblib.load("predictive_maintenance_scaler.pkl")
 machine_type_mapping = {"Conveyor belt": 0, "Crusher": 1, "Loader": 2}
 
 # --- Feature Order used during model training ---
-FEATURE_ORDER = [
-    "vibration", "temperature", "load", "rpm", "sound",
-    "usage_minutes", "planned_operating_time", "downtime_minutes",
-    "downtime_percentage", "oil_quality", "power_usage", "machine_type"
-]
+FEATURE_ORDER = ['vibration', 'temperature', 'load', 'rpm', 'sound', 'usage_minutes', 'planned_operating_time', 'downtime_minutes', 'oil_quality',
+                 'power_usage', 'machine_type', 'downtime_percentage']
 
 # --- App Layout ---
 st.title("🔧 Predictive Maintenance System for SECL")
